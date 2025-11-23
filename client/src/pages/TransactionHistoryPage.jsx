@@ -53,8 +53,8 @@ const TransactionHistoryPage = () => {
       <Navbar />
       <div className="container">
         <div className="page-header">
-          <FaHistory size={40} color="white" />
-          <h2 style={{ color: 'white' }}>Transaction History</h2>
+          <FaHistory size={40} color='#3A2C6A' />
+          <h2 style={{ color: '#3A2C6A' }}>Transaction History</h2>
         </div>
 
         <div className="history-container">

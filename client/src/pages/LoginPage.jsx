@@ -1,136 +1,3 @@
-// // ========== client/src/pages/LoginPage.jsx ==========
-// import { useState } from 'react';
-// import { Link } from 'react-router-dom';
-// import { useTranslation } from '../hooks/useTranslation';
-// import { useAuth } from '../contexts/AuthContext';
-// import VoiceRecorder from '../components/Auth/VoiceRecorder';
-// import api from '../utils/api';
-// import { DEMO_OTP } from '../utils/constants';
-
-// const LoginPage = () => {
-//   const { t } = useTranslation();
-//   const { login } = useAuth();
-//   const [step, setStep] = useState(1);
-//   const [mobile, setMobile] = useState('');
-//   const [otp, setOtp] = useState('');
-//   const [voiceData, setVoiceData] = useState(null);
-//   const [loading, setLoading] = useState(false);
-//   const [error, setError] = useState('');
-
-//   const handleMobileSubmit = (e) => {
-//     e.preventDefault();
-//     if (mobile.length !== 10) {
-//       setError('Please enter a valid 10-digit mobile number');
-//       return;
-//     }
-//     setStep(2);
-//   };
-
-//   const handleOtpSubmit = (e) => {
-//     e.preventDefault();
-//     if (otp !== DEMO_OTP) {
-//       setError('Invalid OTP. Use 123456 for demo');
-//       return;
-//     }
-//     setStep(3);
-//   };
-
-//   const handleVoiceRecorded = (data) => {
-//     setVoiceData(data);
-//   };
-
-//   const handleLogin = async () => {
-//     if (!voiceData) {
-//       setError('Please record your voice first');
-//       return;
-//     }
-
-//     setLoading(true);
-//     setError('');
-
-//     try {
-//       const response = await api.post('/auth/login', {
-//         mobile,
-//         otp,
-//         voice_data: voiceData
-//       });
-
-//       if (response.data.success && response.data.match) {
-//         login(response.data.user, response.data.token);
-//       } else {
-//         setError(response.data.message || t('auth.voiceNotMatching'));
-//       }
-//     } catch (err) {
-//       setError(err.response?.data?.message || 'Login failed');
-//     } finally {
-//       setLoading(false);
-//     }
-//   };
-
-//   return (
-//     <div className="auth-page">
-//       <div className="auth-container">
-//         <h1>{t('auth.login')}</h1>
-        
-//         {error && <div className="error">{error}</div>}
-
-//         {step === 1 && (
-//           <form onSubmit={handleMobileSubmit}>
-//             <input
-//               type="tel"
-//               placeholder={t('auth.enterMobile')}
-//               value={mobile}
-//               onChange={(e) => setMobile(e.target.value)}
-//               maxLength="10"
-//               required
-//             />
-//             <button type="submit">{t('common.submit')}</button>
-//           </form>
-//         )}
-
-//         {step === 2 && (
-//           <form onSubmit={handleOtpSubmit}>
-//             <p>OTP sent to {mobile}</p>
-//             <input
-//               type="text"
-//               placeholder={t('auth.enterOtp')}
-//               value={otp}
-//               onChange={(e) => setOtp(e.target.value)}
-//               maxLength="6"
-//               required
-//             />
-//             <p className="hint">Demo OTP: 123456</p>
-//             <button type="submit">{t('common.submit')}</button>
-//           </form>
-//         )}
-
-//         {step === 3 && (
-//           <div>
-//             <VoiceRecorder onRecordComplete={handleVoiceRecorded} mode="verification" />
-//             <button
-//               onClick={handleLogin}
-//               disabled={!voiceData || loading}
-//               className="btn-primary"
-//             >
-//               {loading ? t('common.loading') : t('auth.login')}
-//             </button>
-//           </div>
-//         )}
-
-//         <p className="auth-link">
-//           {t('auth.dontHaveAccount')} <Link to="/signup">{t('auth.signup')}</Link>
-//         </p>
-//       </div>
-//     </div>
-//   );
-// };
-
-// export default LoginPage;
-
-
-
-
-
 
 // ========== client/src/pages/LoginPage.jsx ==========
 import { useState } from 'react';
@@ -224,7 +91,8 @@ const LoginPage = () => {
   return (
     <div className="auth-page">
       <div className="auth-header">
-        <Link to="/" className="back-link">← {t('navigation.home')}</Link>
+       <Link to="/" className="btn-secondary">🏠 Home</Link>
+
         <LanguageToggle />
       </div>
 
@@ -269,7 +137,7 @@ const LoginPage = () => {
             <p className="hint">Demo OTP: {DEMO_OTP}</p>
             <button type="submit" className="btn-primary">{t('common.submit')}</button>
             <button type="button" onClick={() => setStep(1)} className="btn-secondary">
-              {t('common.back')}
+              {t('back')}
             </button>
           </form>
         )}
@@ -286,7 +154,7 @@ const LoginPage = () => {
                 {loading ? t('common.loading') : t('auth.login')}
               </button>
               <button type="button" onClick={() => setStep(2)} className="btn-secondary">
-                {t('common.back')}
+                {t('back')}
               </button>
             </div>
           </div>

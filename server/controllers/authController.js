@@ -1,388 +1,135 @@
-// const fs = require('fs').promises;
-// const path = require('path');
-// const jwt = require('jsonwebtoken');
-// const MLApiClient = require('../utils/mlApiClient');
 
-// const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
-// const USERS_FILE = path.join(__dirname, '../data/users.json');
-
-// /**
-//  * Read users from JSON file
-//  */
-// async function readUsers() {
-//   try {
-//     const data = await fs.readFile(USERS_FILE, 'utf8');
-//     return JSON.parse(data);
-//   } catch (error) {
-//     return { users: [] };
-//   }
-// }
-
-// /**
-//  * Write users to JSON file
-//  */
-// async function writeUsers(data) {
-//   await fs.writeFile(USERS_FILE, JSON.stringify(data, null, 2));
-// }
-
-// /**
-//  * SIGNUP - Register new user with voice enrollment
-//  * Steps:
-//  * 1. Receive mobile, OTP (simulated), and voice_data (base64 audio)
-//  * 2. Call ML API to enroll voice (creates voiceprint)
-//  * 3. Store user in database
-//  * 4. Return success (do NOT return token - user must login)
-//  */
-// exports.signup = async (req, res) => {
-//   try {
-//     const { mobile, otp, voice_data } = req.body;
-
-//     // Validate input
-//     if (!mobile || !otp || !voice_data) {
-//       return res.status(400).json({
-//         success: false,
-//         message: 'Mobile number, OTP, and voice data are required'
-//       });
-//     }
-
-//     // Simulate OTP verification (in production, verify actual OTP)
-//     if (otp !== '123456') {
-//       return res.status(400).json({
-//         success: false,
-//         message: 'Invalid OTP'
-//       });
-//     }
-
-//     // Read existing users
-//     const usersData = await readUsers();
-    
-//     // Check if user already exists
-//     const existingUser = usersData.users.find(u => u.mobile === mobile);
-//     if (existingUser) {
-//       return res.status(400).json({
-//         success: false,
-//         message: 'User already exists. Please login.'
-//       });
-//     }
-
-//     // Convert base64 voice data to buffer for ML API
-//     // In real implementation, voice_data would be an array of 3-5 samples
-//     const audioBuffer = Buffer.from(voice_data, 'base64');
-//     const audioSamples = [audioBuffer, audioBuffer, audioBuffer]; // Simulate 3 samples
-
-//     // INTEGRATION POINT: Call ML API to enroll voice
-//     try {
-//       const enrollmentResult = await MLApiClient.enrollVoice(mobile, audioSamples);
-      
-//       if (enrollmentResult.status !== 'success') {
-//         return res.status(500).json({
-//           success: false,
-//           message: 'Voice enrollment failed. Please try again.'
-//         });
-//       }
-//     } catch (mlError) {
-//       // If ML API is not running, continue with mock enrollment for demo
-//       console.warn('ML API not available, using mock enrollment');
-//     }
-
-//     // Create new user
-//     const newUser = {
-//       id: Date.now().toString(),
-//       mobile,
-//       name: `User ${mobile.slice(-4)}`,
-//       voiceEnrolled: true,
-//       createdAt: new Date().toISOString(),
-//       mpin: null,
-//       atmLinked: false
-//     };
-
-//     usersData.users.push(newUser);
-//     await writeUsers(usersData);
-
-//     // CRITICAL: Do NOT log the user in automatically
-//     // They must go to /login page
-//     res.status(201).json({
-//       success: true,
-//       message: 'Signup successful. Please login to continue.',
-//       redirectTo: '/login'
-//     });
-
-//   } catch (error) {
-//     console.error('Signup error:', error);
-//     res.status(500).json({
-//       success: false,
-//       message: 'Signup failed. Please try again.'
-//     });
-//   }
-// };
-
-// /**
-//  * LOGIN - Authenticate user with voice verification
-//  * Steps:
-//  * 1. Receive mobile, OTP (simulated), and voice_data
-//  * 2. Verify OTP
-//  * 3. Call ML API to verify voice against enrolled voiceprint
-//  * 4. If match, generate JWT token and return it
-//  */
-// exports.login = async (req, res) => {
-//   try {
-//     const { mobile, otp, voice_data } = req.body;
-
-//     // Validate input
-//     if (!mobile || !otp || !voice_data) {
-//       return res.status(400).json({
-//         success: false,
-//         message: 'Mobile number, OTP, and voice data are required'
-//       });
-//     }
-
-//     // Simulate OTP verification
-//     if (otp !== '123456') {
-//       return res.status(400).json({
-//         success: false,
-//         match: false,
-//         message: 'Invalid OTP'
-//       });
-//     }
-
-//     // Check if user exists
-//     const usersData = await readUsers();
-//     const user = usersData.users.find(u => u.mobile === mobile);
-    
-//     if (!user) {
-//       return res.status(404).json({
-//         success: false,
-//         message: 'User not found. Please signup first.'
-//       });
-//     }
-
-//     if (!user.voiceEnrolled) {
-//       return res.status(400).json({
-//         success: false,
-//         message: 'Voice not enrolled. Please complete signup.'
-//       });
-//     }
-
-//     // Convert base64 voice data to buffer
-//     const audioBuffer = Buffer.from(voice_data, 'base64');
-
-//     // INTEGRATION POINT: Call ML API to verify voice
-//     let authenticated = false;
-//     try {
-//       const verificationResult = await MLApiClient.verifyVoice(mobile, audioBuffer);
-//       authenticated = verificationResult.authenticated === true;
-      
-//       if (!authenticated) {
-//         return res.status(401).json({
-//           success: true,
-//           match: false,
-//           message: "Voice verification failed. It's not matching, please say again."
-//         });
-//       }
-//     } catch (mlError) {
-//       // If ML API is not running, use mock verification for demo
-//       console.warn('ML API not available, using mock verification');
-//       authenticated = true; // Allow login for demo purposes
-//     }
-
-//     // Generate JWT token
-//     const token = jwt.sign(
-//       { userId: user.id, mobile: user.mobile },
-//       JWT_SECRET,
-//       { expiresIn: '24h' }
-//     );
-
-//     res.json({
-//       success: true,
-//       match: true,
-//       message: 'Login successful',
-//       token,
-//       user: {
-//         id: user.id,
-//         mobile: user.mobile,
-//         name: user.name
-//       }
-//     });
-
-//   } catch (error) {
-//     console.error('Login error:', error);
-//     res.status(500).json({
-//       success: false,
-//       message: 'Login failed. Please try again.'
-//     });
-//   }
-// };
-
-// /**
-//  * CHECK VOICE - Quick voice biometric check for voice assistant
-//  * This is called when user clicks the mic icon
-//  * Returns whether the voice is from a known or unknown user
-//  */
-// exports.checkVoice = async (req, res) => {
-//   try {
-//     const { voice_data, userId } = req.body;
-
-//     if (!voice_data) {
-//       return res.status(400).json({
-//         success: false,
-//         message: 'Voice data is required'
-//       });
-//     }
-
-//     // Convert base64 voice data to buffer
-//     const audioBuffer = Buffer.from(voice_data, 'base64');
-
-//     // INTEGRATION POINT: Call ML API to verify voice
-//     let isKnown = false;
-//     try {
-//       if (userId) {
-//         const verificationResult = await MLApiClient.verifyVoice(userId, audioBuffer);
-//         isKnown = verificationResult.authenticated === true;
-//       }
-//     } catch (mlError) {
-//       console.warn('ML API not available for voice check');
-//       // For demo, assume known if userId is provided
-//       isKnown = !!userId;
-//     }
-
-//     res.json({
-//       success: true,
-//       user: isKnown ? 'known' : 'unknown',
-//       message: isKnown 
-//         ? 'Voice recognized. You can proceed.' 
-//         : 'Unknown user detected. Please say again.'
-//     });
-
-//   } catch (error) {
-//     console.error('Check voice error:', error);
-//     res.status(500).json({
-//       success: false,
-//       message: 'Voice check failed. Please try again.'
-//     });
-//   }
-// };
-
-
-
-const fs = require('fs').promises;
+// server/controllers/authController.js
+const fs = require('fs');
+const fsp = require('fs').promises;
 const path = require('path');
 const jwt = require('jsonwebtoken');
 const MLApiClient = require('../utils/mlApiClient');
+const tmp = require('tmp');
+const ffmpegPath = require('ffmpeg-static');
+const ffmpeg = require('fluent-ffmpeg');
+
+ffmpeg.setFfmpegPath(ffmpegPath);
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
 const USERS_FILE = path.join(__dirname, '../data/users.json');
 const DEMO_OTP = process.env.DEMO_OTP || '123456';
 
-/**
- * Read users from JSON file
- */
+// -------------------- file helpers --------------------
 async function readUsers() {
   try {
-    const data = await fs.readFile(USERS_FILE, 'utf8');
+    const data = await fsp.readFile(USERS_FILE, 'utf8');
     return JSON.parse(data);
   } catch (error) {
-    // If file doesn't exist, create it with empty array
-    await fs.writeFile(USERS_FILE, JSON.stringify([], null, 2));
+    // create file if missing
+    await fsp.writeFile(USERS_FILE, JSON.stringify([], null, 2));
     return [];
   }
 }
 
-/**
- * Write users to JSON file
- */
 async function writeUsers(users) {
-  await fs.writeFile(USERS_FILE, JSON.stringify(users, null, 2));
+  await fsp.writeFile(USERS_FILE, JSON.stringify(users, null, 2));
 }
 
-/**
- * Generate unique user ID
- */
-function generateUserId() {
-  return 'user_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+// -------------------- robust FFmpeg conversion --------------------
+async function convertWebmToWav(webmBuffer) {
+  return new Promise((resolve, reject) => {
+    const inputPath = tmp.tmpNameSync({ postfix: '.webm' });
+    const outputPath = tmp.tmpNameSync({ postfix: '.wav' });
+
+    try {
+      fs.writeFileSync(inputPath, webmBuffer);
+    } catch (err) {
+      return reject(new Error('Failed to write temp webm file: ' + err.message));
+    }
+
+    // Use explicit input options to force proper decoding (common WebM/Opus)
+    ffmpeg()
+      .input(inputPath)
+      .inputOptions(['-f', 'webm'])
+      .audioCodec('pcm_s16le')
+      .audioChannels(1)
+      .audioFrequency(16000)
+      .format('wav')
+      .on('start', (cmdline) => {
+        console.log('[FFmpeg] start', cmdline);
+      })
+      .on('error', (err) => {
+        console.error('[FFmpeg] error converting', err);
+        // cleanup
+        try { if (fs.existsSync(inputPath)) fs.unlinkSync(inputPath); } catch(_) {}
+        reject(err);
+      })
+      .on('end', () => {
+        console.log('[FFmpeg] conversion complete ->', outputPath);
+        // cleanup input only; caller will clean output after use
+        try { if (fs.existsSync(inputPath)) fs.unlinkSync(inputPath); } catch(_) {}
+        resolve(outputPath);
+      })
+      .save(outputPath);
+  });
 }
 
-/**
- * SIGNUP - Register new user with voice enrollment
- * FIXED: Creates proper user object and adds to users.json
- */
+
+// -------------------- Signup --------------------
 exports.signup = async (req, res) => {
   try {
     const { mobileNumber, otp, userName } = req.body;
-    const audioFile = req.file; // Multer file
+    const audioFiles = req.files;  // <-- CORRECT
 
-    console.log('Signup attempt for:', mobileNumber);
+    console.log("Signup attempt:", mobileNumber, " Files:", audioFiles?.length);
 
-    // Validate input
     if (!mobileNumber || !otp) {
-      return res.status(400).json({
-        success: false,
-        message: 'Mobile number and OTP are required'
-      });
+      return res.status(400).json({ success: false, message: "Mobile number and OTP are required" });
     }
 
-    if (!audioFile) {
-      return res.status(400).json({
-        success: false,
-        message: 'Voice recording is required for enrollment'
-      });
+    if (!audioFiles || audioFiles.length !== 3) {
+      return res.status(400).json({ success: false, message: "Exactly 3 audio samples required" });
     }
 
-    // Validate OTP (simulated)
     if (otp !== DEMO_OTP) {
-      return res.status(400).json({
-        success: false,
-        message: 'Invalid OTP. Use 123456 for demo.'
-      });
+      return res.status(400).json({ success: false, message: "Invalid OTP. Use 123456 for demo." });
     }
 
-    // Read existing users
     const users = await readUsers();
-    
-    // Check if user already exists
-    const existingUser = users.find(u => u.mobileNumber === mobileNumber);
-    if (existingUser) {
-      return res.status(400).json({
-        success: false,
-        message: 'User already exists. Please login.'
-      });
+    if (users.find(u => u.mobileNumber === mobileNumber)) {
+      return res.status(400).json({ success: false, message: "User already exists" });
     }
 
-    // Generate unique user ID
-    const userId = generateUserId();
+    const userId = "user_" + Date.now();
 
-    // INTEGRATION POINT: Call ML API to enroll voice
-    let enrollmentSuccess = false;
+    // Convert 3 samples to WAV
+    let wavPaths = [];
     try {
-      console.log('Calling ML API for voice enrollment...');
-      
-      // Create form data with 3 copies of the audio (simulating 3 samples)
-      const audioBuffer = audioFile.buffer;
-      const audioSamples = [audioBuffer, audioBuffer, audioBuffer];
-      
-      const enrollmentResult = await MLApiClient.enrollVoice(userId, audioSamples);
-      
-      if (enrollmentResult.status === 'success') {
-        enrollmentSuccess = true;
-        console.log('Voice enrollment successful for user:', userId);
-      } else {
-        return res.status(500).json({
-          success: false,
-          message: 'Voice enrollment failed. Please try again.'
-        });
+      for (const f of audioFiles) {
+        const wav = await convertWebmToWav(f.buffer);
+        wavPaths.push(wav);
       }
-    } catch (mlError) {
-      console.error('ML API error during enrollment:', mlError.message);
-      // For demo purposes, continue even if ML API is not available
-      console.warn('Continuing with mock enrollment (ML API not available)');
-      enrollmentSuccess = true;
+    } catch (err) {
+      return res.status(500).json({ success: false, message: "Audio conversion failed" });
     }
 
-    // Create new user with STATEFUL initial values
+    // Enroll in ML model
+    let enrollResp;
+    try {
+      enrollResp = await MLApiClient.enrollVoice(userId, wavPaths);
+      console.log("ML ENROLL RESPONSE:", enrollResp);
+    } catch (err) {
+      return res.status(500).json({ success: false, message: "ML enroll failed" });
+    }
+
+    // Cleanup wav files
+    wavPaths.forEach(p => { if (fs.existsSync(p)) fs.unlinkSync(p); });
+
+    if (!enrollResp || enrollResp.status !== "success") {
+      return res.status(500).json({ success: false, message: "Voice enrollment failed" });
+    }
+
     const newUser = {
       mobileNumber,
       user_id: userId,
-      userName: userName || `User ${mobileNumber.slice(-4)}`,
-      voiceEnrolled: enrollmentSuccess,
+      userName,
+      voiceEnrolled: true,
       isAtmLinked: false,
       isMpinSet: false,
       createdAt: new Date().toISOString(),
@@ -392,117 +139,82 @@ exports.signup = async (req, res) => {
     users.push(newUser);
     await writeUsers(users);
 
-    console.log('User created successfully:', userId);
-
-    // CRITICAL: Do NOT log the user in automatically
-    // They must go to /login page
-    res.status(201).json({
+    return res.status(201).json({
       success: true,
-      message: 'Signup successful. Please login to continue.',
-      redirectTo: '/login'
+      message: "Signup successful",
     });
 
-  } catch (error) {
-    console.error('Signup error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Signup failed. Please try again.'
-    });
+  } catch (err) {
+    console.error("Signup error:", err);
+    return res.status(500).json({ success: false, message: "Signup failed" });
   }
 };
 
-/**
- * LOGIN - Authenticate user with voice verification
- * CRITICAL FIX: Check if user exists BEFORE voice verification
- */
+// -------------------- Login --------------------
 exports.login = async (req, res) => {
   try {
     const { mobileNumber, otp } = req.body;
-    const audioFile = req.file; // Multer file
+    // single-file login uses req.file
+    const audioFile = req.file;
 
     console.log('Login attempt for:', mobileNumber);
 
-    // Validate input
     if (!mobileNumber || !otp) {
-      return res.status(400).json({
-        success: false,
-        message: 'Mobile number and OTP are required'
-      });
+      return res.status(400).json({ success: false, message: 'Mobile number and OTP are required' });
     }
-
     if (!audioFile) {
-      return res.status(400).json({
-        success: false,
-        message: 'Voice recording is required for verification'
-      });
+      return res.status(400).json({ success: false, message: 'Voice recording is required for verification' });
     }
 
-    // Validate OTP (simulated)
     if (otp !== DEMO_OTP) {
-      return res.status(400).json({
-        success: false,
-        match: false,
-        message: 'Invalid OTP. Use 123456 for demo.'
-      });
+      return res.status(400).json({ success: false, match: false, message: 'Invalid OTP. Use 123456 for demo.' });
     }
 
-    // CRITICAL FIX: Check if user exists in users.json FIRST
     const users = await readUsers();
     const user = users.find(u => u.mobileNumber === mobileNumber);
-    
     if (!user) {
       console.log('User not found:', mobileNumber);
-      return res.status(404).json({
-        success: false,
-        message: 'User not registered. Please sign up first.'
-      });
+      return res.status(404).json({ success: false, message: 'User not registered. Please sign up first.' });
     }
-
     if (!user.voiceEnrolled) {
-      return res.status(400).json({
-        success: false,
-        message: 'Voice not enrolled. Please complete signup.'
+      return res.status(400).json({ success: false, message: 'Voice not enrolled. Please complete signup.' });
+    }
+
+    // Convert uploaded WebM→WAV
+    let wavPath;
+    try {
+      console.log('Converting verification audio to WAV...');
+      wavPath = await convertWebmToWav(audioFile.buffer);
+    } catch (err) {
+      console.error('Conversion failed:', err);
+      return res.status(500).json({ success: false, message: 'Audio conversion failed.' });
+    }
+
+    // Call ML API verify
+    let verificationResp;
+    try {
+      console.log('Calling ML API verifyVoice:', wavPath);
+      verificationResp = await MLApiClient.verifyVoice(user.user_id, wavPath);
+      console.log('Verification response:', verificationResp);
+    } catch (err) {
+      console.error('ML API verify error:', err.message || err);
+      try { if (fs.existsSync(wavPath)) fs.unlinkSync(wavPath); } catch(_) {}
+      return res.status(500).json({ success: false, message: 'Voice verification failed (ML API).' });
+    }
+
+    // cleanup wav
+    try { if (fs.existsSync(wavPath)) fs.unlinkSync(wavPath); } catch(_) {}
+
+    if (!verificationResp || verificationResp.authenticated !== true) {
+      return res.status(401).json({
+        success: true,
+        match: false,
+        message: verificationResp?.message || "Voice verification failed. It's not matching, please say again."
       });
     }
 
-    console.log('User found, proceeding with voice verification:', user.user_id);
-
-    // INTEGRATION POINT: Call ML API to verify voice
-    let authenticated = false;
-    try {
-      console.log('Calling ML API for voice verification...');
-      
-      const audioBuffer = audioFile.buffer;
-      const verificationResult = await MLApiClient.verifyVoice(user.user_id, audioBuffer);
-      
-      authenticated = verificationResult.authenticated === true;
-      
-      if (!authenticated) {
-        console.log('Voice verification failed for user:', user.user_id);
-        return res.status(401).json({
-          success: true,
-          match: false,
-          message: "Voice verification failed. It's not matching, please say again."
-        });
-      }
-      
-      console.log('Voice verification successful for user:', user.user_id);
-    } catch (mlError) {
-      console.error('ML API error during verification:', mlError.message);
-      // For demo purposes, allow login if ML API is not available
-      console.warn('Allowing login (ML API not available)');
-      authenticated = true;
-    }
-
-    // Generate JWT token with user_id and mobileNumber
-    const token = jwt.sign(
-      { 
-        userId: user.user_id,
-        mobileNumber: user.mobileNumber 
-      },
-      JWT_SECRET,
-      { expiresIn: '24h' }
-    );
+    // generate token
+    const token = jwt.sign({ userId: user.user_id, mobileNumber: user.mobileNumber }, JWT_SECRET, { expiresIn: '24h' });
 
     res.json({
       success: true,
@@ -517,79 +229,63 @@ exports.login = async (req, res) => {
         isMpinSet: user.isMpinSet
       }
     });
-
   } catch (error) {
     console.error('Login error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Login failed. Please try again.'
-    });
+    res.status(500).json({ success: false, message: 'Login failed. Please try again.' });
   }
 };
 
-/**
- * CHECK VOICE - Quick voice biometric check for voice assistant
- * This is called when user clicks the mic icon
- */
+// -------------------- Check Voice --------------------
 exports.checkVoice = async (req, res) => {
   try {
     const { userId } = req.body;
-    const audioFile = req.file;
+    // Accept either req.file or req.files
+    const audioFiles = req.files && req.files.length ? req.files : (req.file ? [req.file] : []);
 
     console.log('Voice check for user:', userId);
 
-    if (!audioFile) {
-      return res.status(400).json({
-        success: false,
-        message: 'Voice recording is required'
-      });
+    if (!audioFiles || audioFiles.length === 0) {
+      return res.status(400).json({ success: false, message: 'Voice recording is required' });
     }
-
     if (!userId) {
-      return res.json({
-        success: true,
-        authenticated: false,
-        message: 'Unknown user detected. Please say again.'
-      });
+      return res.json({ success: true, authenticated: false, message: 'Unknown user detected. Please say again.' });
     }
 
-    // Check if user exists
     const users = await readUsers();
     const user = users.find(u => u.user_id === userId);
-
     if (!user) {
-      return res.json({
-        success: true,
-        authenticated: false,
-        message: 'Unknown user detected. Please say again.'
-      });
+      return res.json({ success: true, authenticated: false, message: 'Unknown user detected. Please say again.' });
     }
 
-    // INTEGRATION POINT: Call ML API to verify voice
-    let authenticated = false;
+    // Use the first file for quick check
+    let wavPath;
     try {
-      const audioBuffer = audioFile.buffer;
-      const verificationResult = await MLApiClient.verifyVoice(userId, audioBuffer);
-      authenticated = verificationResult.authenticated === true;
-    } catch (mlError) {
-      console.error('ML API error during voice check:', mlError.message);
-      // For demo, assume authenticated if user exists
-      authenticated = true;
+      wavPath = await convertWebmToWav(audioFiles[0].buffer);
+    } catch (err) {
+      console.error('convertWebmToWav failed in checkVoice:', err);
+      return res.status(500).json({ success: false, authenticated: false, message: 'Audio conversion failed' });
     }
+
+    let verificationResp;
+    try {
+      verificationResp = await MLApiClient.verifyVoice(userId, wavPath);
+    } catch (err) {
+      console.error('ML API verify error in checkVoice:', err);
+      try { if (fs.existsSync(wavPath)) fs.unlinkSync(wavPath); } catch(_) {}
+      return res.status(500).json({ success: false, authenticated: false, message: 'Voice check failed (ML API).' });
+    }
+
+    try { if (fs.existsSync(wavPath)) fs.unlinkSync(wavPath); } catch(_) {}
+
+    const authenticated = verificationResp && verificationResp.authenticated === true;
 
     res.json({
       success: true,
       authenticated,
-      message: authenticated 
-        ? 'Voice recognized. You can proceed.' 
-        : 'Unknown user detected. Please say again.'
+      message: authenticated ? 'Voice recognized. You can proceed.' : 'Unknown user detected. Please say again.'
     });
-
   } catch (error) {
     console.error('Check voice error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Voice check failed. Please try again.'
-    });
+    res.status(500).json({ success: false, message: 'Voice check failed. Please try again.' });
   }
 };

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import Navbar from '../components/Layout/Navbar';
 import { useAppState } from '../contexts/AppStateContext';
 import { API_BASE_URL } from '../utils/constants';
+import api from '../utils/api';
 
 const steps = {
   method: 1,
@@ -83,14 +84,9 @@ const MakePaymentPage = () => {
 
   const verifyMpinRemote = async () => {
     const token = localStorage.getItem('token');
-    const response = await fetch(`${API_BASE_URL}/user/verify-mpin`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: token ? `Bearer ${token}` : undefined,
-      },
-      body: JSON.stringify({ mpin }),
-    });
+    
+const response = await api.post('/user/verify-mpin', { mpin });
+return response.data;
 
     if (!response.ok) {
       const data = await response.json().catch(() => ({}));
@@ -122,17 +118,23 @@ const MakePaymentPage = () => {
 
       await verifyMpinRemote();
 
-      const newBalance = walletBalance - paymentAmount;
-      setWalletBalance(newBalance);
-      addTransaction({
-        id: `txn-${Date.now()}`,
-        type: 'debit',
-        amount: paymentAmount,
-        description: `Paid to ${beneficiary}`,
-        status: 'completed',
-        date: new Date().toISOString(),
-      });
+     
+      
+const newBalance = walletBalance - paymentAmount;
 
+// 🔥 Update balance on server
+await api.post("/user/update-balance", { newBalance });
+setWalletBalance(newBalance);
+
+// 🔥 Add transaction locally
+addTransaction({
+  id: `txn-${Date.now()}`,
+  type: 'debit',
+  amount: paymentAmount,
+  description: `Paid to ${beneficiary}`,
+  status: 'completed',
+  date: new Date().toISOString(),
+});
       setResult({
         status: 'success',
         message: 'Payment successful!',

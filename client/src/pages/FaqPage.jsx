@@ -1,85 +1,19 @@
-// // ========== client/src/pages/FaqPage.jsx ==========
-// import { useState } from 'react';
-// import { useTranslation } from '../hooks/useTranslation';
-// import Navbar from '../components/Layout/Navbar';
-// import api from '../utils/api';
-
-// const FaqPage = () => {
-//   const { t } = useTranslation();
-//   const [query, setQuery] = useState('');
-//   const [answer, setAnswer] = useState('');
-//   const [loading, setLoading] = useState(false);
-
-//   const handleAsk = async (e) => {
-//     e.preventDefault();
-//     setLoading(true);
-
-//     try {
-//       const response = await api.post('/faq/ask', { queryText: query });
-//       setAnswer(response.data.answer);
-//     } catch (error) {
-//       setAnswer('Failed to get answer. Please try again.');
-//     } finally {
-//       setLoading(false);
-//     }
-//   };
-
-//   return (
-//     <div className="page">
-//       <Navbar />
-//       <div className="container">
-//         <h2>{t('faq.title')}</h2>
-        
-//         <form onSubmit={handleAsk} className="faq-search">
-//           <input
-//             type="text"
-//             placeholder={t('faq.askQuestion')}
-//             value={query}
-//             onChange={(e) => setQuery(e.target.value)}
-//             required
-//           />
-//           <button type="submit" disabled={loading}>
-//             {loading ? t('common.loading') : t('faq.search')}
-//           </button>
-//         </form>
-
-//         {answer && (
-//           <div className="faq-answer">
-//             <h3>Answer:</h3>
-//             <p>{answer}</p>
-//           </div>
-//         )}
-//       </div>
-//     </div>
-//   );
-// };
-
-// export default FaqPage;
-
-
-
-
-
-
-
-
-
-
-
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useTranslation } from '../hooks/useTranslation';
-import { useLanguage } from '../contexts/LanguageContext'; // CRITICAL: Import LanguageContext
+import { useLanguage } from '../contexts/LanguageContext';
 import Navbar from '../components/Layout/Navbar';
-import { FaQuestionCircle, FaSearch, FaVolumeUp, FaStop } from 'react-icons/fa';
+import { FaQuestionCircle, FaSearch, FaVolumeUp, FaStop, FaMicrophone } from 'react-icons/fa';
 import api from '../utils/api';
 
 const FaqPage = () => {
   const { t } = useTranslation();
-  const { language } = useLanguage(); // Get current language for TTS
+  const { language } = useLanguage(); 
   const [query, setQuery] = useState('');
   const [answer, setAnswer] = useState('');
   const [loading, setLoading] = useState(false);
-  const [isSpeaking, setIsSpeaking] = useState(false);
+  const [isPlaying, setIsPlaying] = useState(false);
+  
+  const audioRef = useRef(null);
 
   const faqList = [
     {
@@ -104,94 +38,117 @@ const FaqPage = () => {
     }
   ];
 
-  /**
-   * TEXT-TO-SPEECH FUNCTION
-   * CRITICAL: Sets language based on user's selected language
-   */
-  const speakAnswer = (textToSpeak, lang) => {
-    // Stop any previous speech
+  useEffect(() => {
+    return () => {
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.src = '';
+      }
+    };
+  }, []);
+
+
+const playTTS = (text) => {
+  try {
+    if (!text) return;
+
     window.speechSynthesis.cancel();
 
-    const utterance = new SpeechSynthesisUtterance(textToSpeak);
+    const utter = new SpeechSynthesisUtterance(text);
 
-    // CRITICAL PART: Set the language for TTS
-    if (lang === 'hi') {
-      utterance.lang = 'hi-IN'; // Hindi (India)
+    // Set language
+    const langCode = language === "hi" ? "hi-IN" : "en-US";
+    utter.lang = langCode;
+
+    // 🔥 Force load voices first
+    const loadVoices = () => {
+      const voices = window.speechSynthesis.getVoices();
+
+      // Find exact match
+      let voice = voices.find(v => v.lang === langCode);
+
+      // Fallback for Hindi (Chrome sometimes returns "hi_IN")
+      if (!voice && language === "hi") {
+        voice = voices.find(v => v.lang.toLowerCase().includes("hi"));
+      }
+
+      if (voice) {
+        utter.voice = voice;
+      } else {
+        console.warn("⚠ No Hindi voice found, using default browser TTS");
+      }
+
+      window.speechSynthesis.speak(utter);
+    };
+
+    // Voices might not be loaded on first run
+    if (window.speechSynthesis.getVoices().length === 0) {
+      window.speechSynthesis.onvoiceschanged = loadVoices;
     } else {
-      utterance.lang = 'en-US'; // English (US)
+      loadVoices();
     }
 
-    // Optional: Adjust speech properties
-    utterance.rate = 0.9; // Slightly slower for better clarity
-    utterance.pitch = 1.0;
-    utterance.volume = 1.0;
+  } catch (err) {
+    console.error("TTS Error:", err);
+  }
+};
 
-    // Event handlers
-    utterance.onstart = () => {
-      setIsSpeaking(true);
-    };
 
-    utterance.onend = () => {
-      setIsSpeaking(false);
-    };
-
-    utterance.onerror = (event) => {
-      console.error('Speech synthesis error:', event);
-      setIsSpeaking(false);
-    };
-
-    // Speak the text
-    window.speechSynthesis.speak(utterance);
-  };
-
-  /**
-   * Stop speaking
-   */
-  const stopSpeaking = () => {
-    window.speechSynthesis.cancel();
-    setIsSpeaking(false);
-  };
-
-  /**
-   * Handle FAQ query submission
-   */
+  // 📌 Handle FAQ Ask
   const handleAsk = async (e) => {
     e.preventDefault();
     if (!query.trim()) return;
 
     setLoading(true);
     setAnswer('');
-    stopSpeaking(); // Stop any previous speech
 
     try {
       const response = await api.post('/faq/ask', { queryText: query });
-      const newAnswer = response.data.answer;
+      const newAnswer = response.data.answer || 'No answer found.';
       setAnswer(newAnswer);
 
-      // --- NEW: AUTO-PLAY ANSWER ---
-      // Automatically read the answer aloud
-      if (newAnswer) {
-        speakAnswer(newAnswer, language);
-      }
-      // --- END NEW ---
+      // 🔊 Auto play the AI answer using backend TTS
+      playTTS(newAnswer);
 
-    } catch (error) {
-      const errorMsg = 'Failed to get answer. Please try again.';
-      setAnswer(errorMsg);
-      speakAnswer(errorMsg, language);
-    } finally {
-      setLoading(false);
+    } catch (err) {
+      console.error("FAQ error", err);
+      const errMsg = "Failed to get answer. Please try again.";
+      setAnswer(errMsg);
+      playTTS(errMsg);
     }
+
+    setLoading(false);
   };
 
-  /**
-   * Handle clicking on a FAQ item
-   */
+  // 📌 Handle clicking a FAQ item
   const handleFaqClick = (faq) => {
     setQuery(faq.question);
     setAnswer(faq.answer);
-    stopSpeaking();
-    speakAnswer(faq.answer, language);
+    playTTS(faq.answer);
+  };
+
+  // 🎤 VOICE INPUT (microphone)
+  const startVoiceInput = () => {
+    if (!('webkitSpeechRecognition' in window)) {
+      alert("Speech recognition not supported in this browser");
+      return;
+    }
+
+    const recognition = new window.webkitSpeechRecognition();
+    recognition.lang = language === "hi" ? "hi-IN" : "en-US";
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
+
+    recognition.start();
+
+    recognition.onresult = (event) => {
+      const spokenText = event.results[0][0].transcript;
+      setQuery(spokenText);
+    };
+
+    recognition.onerror = (e) => {
+      console.error("Voice input error:", e);
+    };
   };
 
   return (
@@ -199,8 +156,8 @@ const FaqPage = () => {
       <Navbar />
       <div className="container">
         <div className="page-header">
-          <FaQuestionCircle size={40} color="white" />
-          <h2 style={{ color: 'white' }}>{t('faq.title')}</h2>
+          <FaQuestionCircle size={40} color="#3A2C6A" />
+          <h2 style={{ color: "#3A2C6A"}}>{t('Ask Your Query')}</h2>
         </div>
         
         <div className="faq-container">
@@ -212,40 +169,36 @@ const FaqPage = () => {
               value={query}
               onChange={(e) => setQuery(e.target.value)}
             />
+
+            <button onClick={startVoiceInput} type="button" className="mic-button">
+              <FaMicrophone />
+            </button>
+
             <button type="submit" disabled={loading}>
               <FaSearch /> {loading ? t('common.loading') : t('faq.search')}
             </button>
           </form>
 
-          {/* Answer Display with Read Aloud Button */}
+          {/* Answer Display */}
           {answer && (
             <div className="faq-answer">
               <div className="answer-header">
                 <h3>Answer:</h3>
+
                 <div className="answer-controls">
-                  {isSpeaking ? (
-                    <button 
-                      onClick={stopSpeaking}
-                      className="speak-button stop"
-                      aria-label="Stop reading"
-                    >
+                  {isPlaying ? (
+                    <button onClick={() => audioRef.current.pause()} className="speak-button stop">
                       <FaStop /> Stop
                     </button>
                   ) : (
-                    <button 
-                      onClick={() => speakAnswer(answer, language)} 
-                      className="speak-button"
-                      aria-label="Read answer aloud"
-                    >
+                    <button onClick={() => playTTS(answer)} className="speak-button">
                       <FaVolumeUp /> Read Aloud
                     </button>
                   )}
                 </div>
               </div>
+
               <p className="answer-text">{answer}</p>
-              <div className="language-indicator">
-                🔊 Speaking in: {language === 'hi' ? 'हिंदी (Hindi)' : 'English'}
-              </div>
             </div>
           )}
 
@@ -265,8 +218,7 @@ const FaqPage = () => {
           </div>
         </div>
       </div>
-
-      <style>{`
+<style>{`
         .page-header {
           display: flex;
           align-items: center;
@@ -426,7 +378,28 @@ const FaqPage = () => {
           color: #666;
           line-height: 1.6;
         }
-      `}</style>
+          .mic-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px 16px;
+  border: 2px solid var(--primary-color);
+  background: white;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: 0.3s;
+  font-size: 18px;
+  color: var(--primary-color);
+}
+
+.mic-button:hover {
+  background: var(--primary-color);
+  color: white;
+  transform: scale(1.05);
+}
+
+       `}</style>
+      {/* Your styling is unchanged */}
     </div>
   );
 };

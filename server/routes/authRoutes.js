@@ -1,24 +1,3 @@
-// const express = require('express');
-// const router = express.Router();
-// const authController = require('../controllers/authController');
-
-// /**
-//  * Authentication Routes
-//  * All voice biometric authentication endpoints
-//  */
-
-// // POST /api/auth/signup - Register new user with voice enrollment
-// router.post('/signup', authController.signup);
-
-// // POST /api/auth/login - Login with voice verification
-// router.post('/login', authController.login);
-
-// // POST /api/auth/check-voice - Quick voice check for assistant
-// router.post('/check-voice', authController.checkVoice);
-
-// module.exports = router;
-
-
 
 const express = require('express');
 const router = express.Router();
@@ -41,18 +20,12 @@ const upload = multer({
   }
 });
 
-/**
- * Authentication Routes
- * All voice biometric authentication endpoints
- */
 
-// POST /api/auth/signup - Register new user with voice enrollment
-router.post('/signup', upload.single('audio'), authController.signup);
+router.post('/signup', upload.array('audio_sample', 5), authController.signup);
 
-// POST /api/auth/login - Login with voice verification
+
 router.post('/login', upload.single('audio'), authController.login);
 
-// POST /api/auth/check-voice - Quick voice check for assistant
-router.post('/check-voice', upload.single('audio'), authController.checkVoice);
+
 
 module.exports = router;

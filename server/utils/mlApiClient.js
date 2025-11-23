@@ -1,95 +1,97 @@
-const axios = require('axios');
-const FormData = require('form-data');
 
-// ML API Base URL - Update this to match your ML server IP
-const ML_API_BASE_URL = process.env.ML_API_URL || 'http://localhost:5000';
+const axios = require("axios");
+const FormData = require("form-data");
+axios.defaults.maxBodyLength = Infinity;
+axios.defaults.maxContentLength = Infinity;
+const fs = require("fs");
 
-/**
- * ML API Client for Voice Biometrics and NLP
- * This module communicates with the Saarthi AI/ML Flask service
- */
+const ML_SAARTHI_URL = process.env.ML_SAARTHI_URL || "http://localhost:5002";
+const FAQ_ENGINE_URL = process.env.FAQ_ENGINE_URL || "http://localhost:5001";
 
 class MLApiClient {
-  /**
-   * VOICE BIOMETRICS - Enroll a new user
-   * @param {string} userId - Unique user identifier
-   * @param {Array<Buffer>} audioSamples - Array of 3-5 audio file buffers
-   * @returns {Promise<Object>} Enrollment result
-   */
-  static async enrollVoice(userId, audioSamples) {
-    try {
-      const formData = new FormData();
-      formData.append('user_id', userId);
-      
-      // Append each audio sample
-      audioSamples.forEach((audioBuffer, index) => {
-        formData.append('audio_sample', audioBuffer, `sample_${index}.wav`);
-      });
-
-      const response = await axios.post(
-        `${ML_API_BASE_URL}/enroll_voice`,
-        formData,
-        {
-          headers: formData.getHeaders(),
-          timeout: 30000 // 30 second timeout
-        }
-      );
-
-      return response.data;
-    } catch (error) {
-      console.error('ML API - Enroll Voice Error:', error.message);
-      throw new Error('Voice enrollment failed. Please try again.');
-    }
-  }
-
-  /**
-   * VOICE BIOMETRICS - Verify a user's voice
-   * @param {string} userId - Unique user identifier
-   * @param {Buffer} audioBuffer - Single audio file buffer for verification
-   * @returns {Promise<Object>} Verification result with authenticated status
-   */
-  static async verifyVoice(userId, audioBuffer) {
-    try {
-      const formData = new FormData();
-      formData.append('user_id', userId);
-      formData.append('audio_verification', audioBuffer, 'verification.wav');
-
-      const response = await axios.post(
-        `${ML_API_BASE_URL}/verify_voice`,
-        formData,
-        {
-          headers: formData.getHeaders(),
-          timeout: 15000 // 15 second timeout
-        }
-      );
-
-      return response.data;
-    } catch (error) {
-      console.error('ML API - Verify Voice Error:', error.message);
-      throw new Error('Voice verification failed. Please try again.');
-    }
-  }
-
-  /**
-   * NLP - Predict intent and extract entities from text query
-   * @param {string} query - User's text query
-   * @returns {Promise<Object>} Intent and entities
-   */
+  // 1) Intent
   static async predictIntent(query) {
     try {
       const response = await axios.post(
-        `${ML_API_BASE_URL}/predict`,
+        `${ML_SAARTHI_URL}/predict`,
         { query },
-        {
-          headers: { 'Content-Type': 'application/json' },
-          timeout: 10000 // 10 second timeout
-        }
+        { headers: { "Content-Type": "application/json" }, timeout: 10000 }
       );
-
       return response.data;
     } catch (error) {
-      console.error('ML API - Predict Intent Error:', error.message);
-      throw new Error('Intent prediction failed. Please try again.');
+      console.error("ML API - Intent Error:", error.message || error.toString());
+      throw error;
+    }
+  }
+
+  // 2) Enroll voice - wavFilePaths is an array of filesystem paths
+  static async enrollVoice(userId, wavFilePaths) {
+    try {
+      const formData = new FormData();
+      formData.append("user_id", userId);
+
+      // append every sample as 'audio_sample'
+      for (const p of wavFilePaths) {
+        if (!fs.existsSync(p)) {
+          console.warn("MLApiClient.enrollVoice - missing file:", p);
+          continue;
+        }
+        formData.append("audio_sample", fs.createReadStream(p));
+      }
+
+      const response = await axios.post(`${ML_SAARTHI_URL}/enroll_voice`, formData, {
+        headers: formData.getHeaders(),
+        timeout: 60000
+      });
+
+      // Return the ML API response body so caller can inspect status/message
+      return response.data;
+    } catch (error) {
+      // If axios error, attempt to print response body
+      console.error("ML API - Enroll Error:", (error && error.message) || error.toString());
+      if (error.response && error.response.data) {
+        console.error("ML API - Enroll Response:", error.response.data);
+      }
+      throw error;
+    }
+  }
+
+  // 3) Verify voice - wavFilePath is a filesystem path
+  static async verifyVoice(userId, wavFilePath) {
+    try {
+      const formData = new FormData();
+      formData.append("user_id", userId);
+      if (!fs.existsSync(wavFilePath)) {
+        throw new Error("verifyVoice - wav file not found: " + wavFilePath);
+      }
+      formData.append("audio_verification", fs.createReadStream(wavFilePath));
+
+      const response = await axios.post(`${ML_SAARTHI_URL}/verify_voice`, formData, {
+        headers: formData.getHeaders(),
+        timeout: 30000
+      });
+
+      return response.data || {};
+    } catch (error) {
+      console.error("ML API - Verify Error:", (error && error.message) || error.toString());
+      if (error.response && error.response.data) {
+        console.error("ML API - Verify Response:", error.response.data);
+      }
+      throw error;
+    }
+  }
+
+  static async askFaq(question) {
+    try {
+      const response = await axios.post(
+        `${FAQ_ENGINE_URL}/faq-answer`,
+        { question },
+        { headers: { "Content-Type": "application/json" }, timeout: 15000 }
+      );
+      return response.data;
+    } catch (error) {
+      console.error("FAQ Engine Error:", error.message || error.toString());
+      throw error;
     }
   }
 }

@@ -20,11 +20,11 @@ const askFaq = async (req, res) => {
     console.log('FAQ Query:', queryText);
 
     // Get FAQ API URL from environment
-    const faqApiUrl = process.env.FAQ_API_URL || 'http://localhost:5000';
+    const faqApiUrl = process.env.FAQ_API_URL || 'http://localhost:5001';
 
     // CRITICAL TRANSLATION: queryText → query
-    const response = await axios.post(`${faqApiUrl}/ask`, {
-      query: queryText  // Python server expects "query", not "queryText"
+    const response = await axios.post(`${faqApiUrl}/faq-answer`, {
+      question: queryText  // Python server expects "query", not "queryText"
     }, {
       timeout: 10000 // 10 second timeout
     });
@@ -34,7 +34,8 @@ const askFaq = async (req, res) => {
     // Send answer back to React
     res.json({
       success: true,
-      answer: response.data.answer || 'No answer available'
+      answer: response.data.answer || 'No answer available',
+      confidence: response.data.confidence ?? null
     });
 
   } catch (error) {

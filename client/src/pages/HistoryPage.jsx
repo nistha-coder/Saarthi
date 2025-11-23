@@ -1,83 +1,3 @@
-// // ========== client/src/pages/HistoryPage.jsx ==========
-// import { useState, useEffect } from 'react';
-// import { useTranslation } from '../hooks/useTranslation';
-// import Navbar from '../components/Layout/Navbar';
-// import api from '../utils/api';
-
-// const HistoryPage = () => {
-//   const { t } = useTranslation();
-//   const [history, setHistory] = useState([]);
-//   const [loading, setLoading] = useState(true);
-
-//   useEffect(() => {
-//     fetchHistory();
-//   }, []);
-
-//   const fetchHistory = async () => {
-//     try {
-//       const response = await api.get('/assistant/history');
-//       setHistory(response.data.history);
-//     } catch (error) {
-//       console.error('Failed to fetch history:', error);
-//     } finally {
-//       setLoading(false);
-//     }
-//   };
-
-//   if (loading) {
-//     return <div className="loading">{t('common.loading')}</div>;
-//   }
-
-//   return (
-//     <div className="page">
-//       <Navbar />
-//       <div className="container">
-//         <h2>{t('navigation.history')}</h2>
-        
-//         <div className="history-list">
-//           {history.length === 0 ? (
-//             <p>No chat history yet</p>
-//           ) : (
-//             history.map((item, index) => (
-//               <div key={index} className="history-item">
-//                 <div className="query">
-//                   <strong>You:</strong> {item.query}
-//                 </div>
-//                 <div className="response">
-//                   <strong>Assistant:</strong> {item.response}
-//                 </div>
-//                 <div className="timestamp">
-//                   {new Date(item.timestamp).toLocaleString()}
-//                 </div>
-//               </div>
-//             ))
-//           )}
-//         </div>
-//       </div>
-//     </div>
-//   );
-// };
-
-// export default HistoryPage;
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 // ========== client/src/pages/HistoryPage.jsx ==========
 import { useState, useEffect } from 'react';
@@ -123,8 +43,8 @@ const HistoryPage = () => {
       <Navbar />
       <div className="container">
         <div className="page-header">
-          <FaHistory size={40} color="white" />
-          <h2 style={{ color: 'white' }}>{t('navigation.history')}</h2>
+          <FaHistory size={40} color="#3A2C6A" />
+          <h2 style={{ color: "#3A2C6A" }}>{t('navigation.history')}</h2>
         </div>
         
         <div className="history-container">

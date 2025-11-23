@@ -1,6 +1,6 @@
 // ========== client/src/components/Dashboard/UpiDisplay.jsx ==========
 import { useState } from 'react';
-import { FaCopy, FaDownload, FaShareAlt } from 'react-icons/fa';
+import { FaCopy, FaDownload, FaShareAlt, FaUserCircle, FaCheck } from 'react-icons/fa';
 
 const UpiDisplay = ({ upiId, qrCodeData }) => {
   const [copied, setCopied] = useState(false);
@@ -12,6 +12,7 @@ const UpiDisplay = ({ upiId, qrCodeData }) => {
   const handleCopy = () => {
     navigator.clipboard.writeText(upiId);
     setCopied(true);
+
     setTimeout(() => setCopied(false), 2000);
   };
 
@@ -24,59 +25,69 @@ const UpiDisplay = ({ upiId, qrCodeData }) => {
 
   const handleShare = async () => {
     const shareText = `My Saarthi UPI ID: ${upiId}`;
+
     try {
-      if (navigator.share) {
-        await navigator.share({ title: 'Saarthi UPI', text: shareText });
+      const response = await fetch(qrCodeData);
+      const blob = await response.blob();
+      const qrFile = new File([blob], 'upi-qr.png', { type: blob.type });
+
+      if (navigator.share && navigator.canShare({ files: [qrFile] })) {
+        await navigator.share({
+          title: 'Saarthi UPI',
+          text: shareText,
+          files: [qrFile]
+        });
       } else {
         navigator.clipboard.writeText(shareText);
-        setShareFeedback('Details copied to clipboard!');
+        setShareFeedback('Details copied!');
         setTimeout(() => setShareFeedback(''), 2000);
       }
     } catch (error) {
-      setShareFeedback('Unable to share right now.');
+      setShareFeedback('Unable to share now.');
       setTimeout(() => setShareFeedback(''), 2000);
     }
   };
 
+  const userName = upiId.split('@')[0];
+
   return (
     <>
-      <div className="upi-section">
-        <div className="section-heading">
-          <h3>My QR & UPI</h3>
-          <p>Receive money quickly from anyone, anywhere.</p>
+      <div className="upi-modern-card">
+        <div className="upi-card-header">
+          <FaUserCircle className="upi-user-icon" />
+          <h3 className="upi-name">{userName}</h3>
         </div>
-        <div className="card-grid">
-          <button className="feature-card qr-card" onClick={() => setShowQrModal(true)}>
-            <div className="icon-circle">▢</div>
-            <h4>My QR</h4>
-            <p>Tap to enlarge or download.</p>
-            <div className="qr-mini">
-              <img src={qrCodeData} alt="UPI QR preview" />
-            </div>
-            <span className="cta-link">View QR</span>
-          </button>
 
-          <button className="feature-card upi-card" onClick={handleCopy}>
-            <div className="icon-circle">＠</div>
-            <h4>UPI ID</h4>
-            <p>{upiId}</p>
-            <span className="cta-link">
-              <FaCopy /> {copied ? 'Copied!' : 'Copy'}
-            </span>
-          </button>
-
-          <button className="feature-card share-card" onClick={handleShare}>
-            <div className="icon-circle">↗</div>
-            <h4>Share Details</h4>
-            <p>Send your QR or UPI to friends.</p>
-            <span className="cta-link">
-              <FaShareAlt /> Share
-            </span>
-            {shareFeedback && <small>{shareFeedback}</small>}
-          </button>
+        <div className="upi-main-qr">
+          <img src={qrCodeData} alt="UPI QR" />
         </div>
+
+        {/* ===== UPI ID COPY SECTION ===== */}
+        <p className={`upi-id-text ${copied ? "copied-text" : ""}`}>
+          UPI ID: <span>{upiId}</span>
+
+          {/* ICON: changes on copy */}
+          {copied ? (
+            <FaCheck className="copy-icon copied" />
+          ) : (
+            <FaCopy
+              className="copy-icon"
+              onClick={handleCopy}
+            />
+          )}
+
+          {/* Copied Text */}
+          {copied && <span className="copied-label">Copied!</span>}
+        </p>
+
+        <button className="share-qr-btn" onClick={handleShare}>
+          <FaShareAlt /> Share QR code
+        </button>
+
+        {shareFeedback && <small>{shareFeedback}</small>}
       </div>
 
+      {/* ====== MODAL ====== */}
       {showQrModal && (
         <div className="qr-modal">
           <div className="modal-overlay" onClick={() => setShowQrModal(false)} />
@@ -85,9 +96,11 @@ const UpiDisplay = ({ upiId, qrCodeData }) => {
               ×
             </button>
             <h3>My QR Code</h3>
+
             <div className="modal-qr">
               <img src={qrCodeData} alt="Full QR" />
             </div>
+
             <button className="btn-primary large" onClick={handleDownloadQR}>
               <FaDownload /> Download QR
             </button>
@@ -96,164 +109,91 @@ const UpiDisplay = ({ upiId, qrCodeData }) => {
       )}
 
       <style>{`
-        .upi-section {
-          padding: 30px;
-          background: linear-gradient(135deg, #5f259f 0%, #3b82f6 100%);
-          border-radius: 32px;
-          color: white;
-          overflow: hidden;
-        }
-
-        .section-heading h3 {
-          font-size: 28px;
-          margin-bottom: 4px;
-        }
-
-        .section-heading p {
-          margin-bottom: 24px;
-          opacity: 0.85;
-        }
-
-        .card-grid {
-          display: grid;
-          grid-template-columns: repeat(3, minmax(0, 1fr));
-          gap: 20px;
-        }
-
-        .feature-card {
-          border: none;
-          border-radius: 24px;
-          padding: 24px;
+        .upi-modern-card {
           background: white;
-          color: #0f172a;
-          text-align: left;
-          box-shadow: 0 20px 35px rgba(15, 23, 42, 0.15);
-          cursor: pointer;
-          transition: transform 0.25s ease, box-shadow 0.25s ease;
-          position: relative;
+          padding: 30px;
+          border-radius: 20px;
+          text-align: center;
+          box-shadow: 0 15px 40px rgba(0, 0, 0, 0.08);
+          border: 1.5px solid #e5e7eb;
+          width: 100%;
         }
 
-        .feature-card:hover {
-          transform: translateY(-6px);
-          box-shadow: 0 30px 55px rgba(59, 130, 246, 0.3);
+        .upi-user-icon {
+          font-size: 55px;
+          color: #6b7280;
+          margin-bottom: 8px;
         }
 
-        .icon-circle {
-          width: 48px;
-          height: 48px;
-          border-radius: 16px;
-          background: #eff6ff;
-          color: #1d4ed8;
+        .upi-name {
+          font-size: 18px;
+          font-weight: 600;
+          color: #111827;
+          margin-bottom: 10px;
+        }
+
+        .upi-main-qr img {
+          width: 190px;
+          height: 190px;
+          border-radius: 12px;
+        }
+
+        .upi-id-text {
+          font-size: 15px;
+          margin-top: 16px;
+          color: #4b5563;
           display: flex;
           align-items: center;
           justify-content: center;
-          font-weight: 700;
-          margin-bottom: 12px;
+          gap: 6px;
         }
 
-        .qr-card .icon-circle {
-          background: #f0fdf4;
-          color: #047857;
+        .upi-id-text span {
+          font-weight: 600;
+          color: #111827;
         }
 
-        .share-card .icon-circle {
-          background: #eef2ff;
-          color: #4c1d95;
+        /* Copy Icon */
+        .copy-icon {
+          cursor: pointer;
+          color: #2563eb;
+          transition: 0.3s ease;
         }
 
-        .qr-mini {
-          margin: 16px 0;
-          background: #f8fafc;
+        .copy-icon:hover {
+          transform: scale(1.1);
+        }
+
+        /* Copied State */
+        .copy-icon.copied {
+          color: #1d4ed8;
+        }
+
+        .copied-label {
+          font-size: 14px;
+          color: #1d4ed8;
+          font-weight: 600;
+          margin-left: 4px;
+        }
+
+        .copied-text span {
+          color: #2563eb;
+        }
+
+        .share-qr-btn {
+          margin-top: 20px;
+          width: 100%;
           padding: 12px;
-          border-radius: 16px;
-          display: inline-flex;
-        }
-
-        .qr-mini img {
-          width: 100px;
-          height: 100px;
-        }
-
-        .cta-link {
-          display: inline-flex;
+          border: none;
+          border-radius: 10px;
+          background: #2563eb;
+          color: white;
+          font-size: 16px;
+          display: flex;
           align-items: center;
           gap: 8px;
-          color: #2563eb;
-          font-weight: 600;
-        }
-
-        .share-card small {
-          display: block;
-          margin-top: 10px;
-          color: #047857;
-        }
-
-        .qr-modal {
-          position: fixed;
-          inset: 0;
-          z-index: 300;
-          display: flex;
-          align-items: center;
           justify-content: center;
-        }
-
-        .modal-overlay {
-          position: absolute;
-          inset: 0;
-          background: rgba(0, 0, 0, 0.5);
-        }
-
-        .modal-content {
-          position: relative;
-          background: rgba(255, 255, 255, 0.95);
-          border-radius: 24px;
-          padding: 32px;
-          z-index: 1;
-          width: min(90vw, 420px);
-          text-align: center;
-          box-shadow: 0 30px 60px rgba(0, 0, 0, 0.3);
-        }
-
-        .modal-qr {
-          margin: 20px 0;
-          background: white;
-          padding: 20px;
-          border-radius: 18px;
-        }
-
-        .modal-qr img {
-          width: 220px;
-          height: 220px;
-        }
-
-        .close-btn {
-          position: absolute;
-          top: 16px;
-          right: 16px;
-          width: 40px;
-          height: 40px;
-          border-radius: 50%;
-          border: none;
           cursor: pointer;
-          font-size: 24px;
-          background: rgba(0, 0, 0, 0.08);
-        }
-
-        @media (max-width: 900px) {
-          .card-grid {
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-          }
-        }
-
-        @media (max-width: 640px) {
-          .card-grid {
-            grid-template-columns: repeat(3, minmax(200px, 1fr));
-            overflow-x: auto;
-            gap: 12px;
-          }
-          .feature-card {
-            min-width: 220px;
-          }
         }
       `}</style>
     </>

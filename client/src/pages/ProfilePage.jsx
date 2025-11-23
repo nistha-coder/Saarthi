@@ -1,85 +1,3 @@
-// // ========== client/src/pages/ProfilePage.jsx ==========
-// import { useState, useEffect } from 'react';
-// import { useTranslation } from '../hooks/useTranslation';
-// import Navbar from '../components/Layout/Navbar';
-// import api from '../utils/api';
-
-// const ProfilePage = () => {
-//   const { t } = useTranslation();
-//   const [profile, setProfile] = useState(null);
-//   const [loading, setLoading] = useState(true);
-
-//   useEffect(() => {
-//     fetchProfile();
-//   }, []);
-
-//   const fetchProfile = async () => {
-//     try {
-//       const response = await api.get('/user/profile');
-//       setProfile(response.data.profile);
-//     } catch (error) {
-//       console.error('Failed to fetch profile:', error);
-//     } finally {
-//       setLoading(false);
-//     }
-//   };
-
-//   if (loading) {
-//     return <div className="loading">{t('common.loading')}</div>;
-//   }
-
-//   return (
-//     <div className="page">
-//       <Navbar />
-//       <div className="container">
-//         <h2>{t('profile.myProfile')}</h2>
-        
-//         <div className="profile-card">
-//           <div className="profile-item">
-//             <label>{t('profile.name')}:</label>
-//             <span>{profile?.name}</span>
-//           </div>
-//           <div className="profile-item">
-//             <label>{t('profile.mobile')}:</label>
-//             <span>{profile?.mobile}</span>
-//           </div>
-//           <div className="profile-item">
-//             <label>{t('profile.voiceEnrolled')}:</label>
-//             <span>{profile?.voiceEnrolled ? '✓' : '✗'}</span>
-//           </div>
-//           <div className="profile-item">
-//             <label>{t('profile.atmLinked')}:</label>
-//             <span>{profile?.atmLinked ? '✓' : '✗'}</span>
-//           </div>
-//           <div className="profile-item">
-//             <label>{t('profile.mpinSet')}:</label>
-//             <span>{profile?.mpinSet ? '✓' : '✗'}</span>
-//           </div>
-//           <div className="profile-item">
-//             <label>{t('profile.memberSince')}:</label>
-//             <span>{new Date(profile?.createdAt).toLocaleDateString()}</span>
-//           </div>
-//         </div>
-//       </div>
-//     </div>
-//   );
-// };
-
-// export default ProfilePage;
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 // ========== client/src/pages/ProfilePage.jsx ==========
 import { useState, useEffect } from 'react';
@@ -129,7 +47,7 @@ const ProfilePage = () => {
         <div className="profile-container">
           <div className="profile-header">
             <FaUserCircle size={80} color="var(--primary-color)" />
-            <h2>{t('profile.myProfile')}</h2>
+            <h2 style={{ color: '#3A2C6A' }}>{t('profile.myProfile')}</h2>
           </div>
 
           <div className="profile-card">
